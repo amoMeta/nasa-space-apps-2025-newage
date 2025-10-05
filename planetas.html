@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Simulação de Sistema Solar VR - A-Frame</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  </head>
+
+  <body>
+    <a-scene  background="color: black" id="scene">
+      <!-- Sol -->
+      <a-sphere position="10 0 0" radius="1" color="red" emissive="orange"></a-sphere>
+
+      <!-- Mercúrio -->
+      <a-sphere radius="0.30" position="2 0 0" color="gray" orbit="radius: 2; speed: 0.5"></a-sphere>
+
+      <!-- Vênus -->
+      <a-sphere radius="0.15" position="3 0 0" color="orange" orbit="radius: 3; speed: 0.35"></a-sphere>
+
+      <!-- Terra -->
+      <a-sphere radius="0.20" position="5 0 0"color="blue" orbit="radius: 4; speed: 0.2"></a-sphere>
+
+      <!-- Marte -->
+      <a-sphere radius="0.18" position="7 0 0"color="purple" orbit="radius: 5; speed: 0.15"></a-sphere>
+
+      <!-- Luz do sol -->
+      <a-entity light="type: point; intensity: 2; distance: 20" position="0 0 0"></a-entity>
+
+      <!-- Céu estrelado -->
+      <a-sky color="#000000"></a-sky>
+
+      <!-- Câmera -->
+      <a-entity position="0 1.6 6">
+        <a-camera wasd-controls look-controls></a-camera>
+      </a-entity>
+    </a-scene>
+
+    <!-- Script deve vir depois da cena -->
+    <script>
+      // Espera o carregamento do A-Frame e da cena
+      document.querySelector('a-scene').addEventListener('loaded', () => {
+        AFRAME.registerComponent('orbit', {
+          schema: {
+            speed: { type: 'number', default: 0.01 },
+            radius: { type: 'number', default: 2 }
+          },
+          init: function () {
+            this.angle = Math.random() * 360;
+          },
+          tick: function (time, deltaTime) {
+            this.angle += this.data.speed * (deltaTime / 16);
+            const rad = THREE.MathUtils.degToRad(this.angle); // <- MathUtils é o correto no A-Frame 1.5+
+            const x = this.data.radius * Math.cos(rad);
+            const z = this.data.radius * Math.sin(rad);
+            this.el.setAttribute('position', { x, y: 0, z });
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

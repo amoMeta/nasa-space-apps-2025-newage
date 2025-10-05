@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Visualização de Exoplanetas com A-Frame</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene background="color: black" id="scene">
+      <a-entity position="0 1.6 10">
+        <a-camera wasd-controls look-controls></a-camera>
+      </a-entity>
+
+      <a-entity light="type: ambient; color: #555"></a-entity>
+      <a-entity light="type: point; intensity: 2; distance: 50" position="0 0 0"></a-entity>
+
+      <!-- Aqui vamos inserir sistemas estelares dinamicamente -->
+    </a-scene>
+
+    <script>
+      // Componente para órbita de planeta ao redor de sua estrela local
+      AFRAME.registerComponent('orbiter', {
+        schema: {
+          radius: { type: 'number', default: 1 },
+          speed: { type: 'number', default: 0.01 },
+          center: { type: 'selector' }  // elemento A-Frame da estrela
+        },
+        init: function () {
+          this.angle = Math.random() * 360;
+        },
+        tick: function (time, delta) {
+          this.angle += this.data.speed * (delta / 16);
+          const rad = THREE.MathUtils.degToRad(this.angle);
+          const x = this.data.center.getAttribute('position').x + this.data.radius * Math.cos(rad);
+          const z = this.data.center.getAttribute('position').z + this.data.radius * Math.sin(rad);
+          const y = this.data.center.getAttribute('position').y;
+          this.el.setAttribute('position', { x, y, z });
+        }
+      });
+
+      // Função para buscar dados da API da NASA
+async function fetchExoplanetData() {
+  const url = 'https://exoplanetarchive.ipac.caltech.edu/cgi-bin/nstedAPI/nph-nstedAPI?table=exoplanets&format=csv&select=pl_name,st_name,pl_orbsmax,pl_orbper,pl_rade,st_dist&where=pl_orbsmax+is+not+null+and+pl_orbper+is+not+null';
+  
+  const resp = await fetch(url);
+  const csvText = await resp.text();
+  return parseCSV(csvText);
+}
+function parseCSV(csv) {
+  const lines = csv.trim().split('\n');
+  const headers = lines[0].split(',');
+
+  return lines.slice(1).map(line => {
+    const values = line.split(',');
+    const obj = {};
+    headers.forEach((h, i) => {
+      let value = values[i];
+      // Tentar converter números
+      const num = parseFloat(value);
+      obj[h] = isNaN(num) ? value : num;
+    });
+    return obj;
+  });
+}
+
+
+      function createStarSystem(systemData, index) {
+        // systemData: objeto com pl_name, st_name, pl_orbsmax (AU ou unidade), pl_orbper, pl_rade, st_dist, etc.
+        const scene = document.querySelector('a-scene');
+
+        // Calcula posicao fixa no espaço para esse sistema (para separar visuais)
+        // Exemplo simples: distribuindo ao longo de X e Z
+        const spacing = 10;
+        const sx = (index % 5) * spacing - 20;
+        const sz = Math.floor(index / 5) * spacing - 20;
+
+        // Cria estrela anfitriã
+        const star = document.createElement('a-sphere');
+        star.setAttribute('radius', 0.5);
+        star.setAttribute('color', '#ffff66');
+        star.setAttribute('position', { x: sx, y: 0, z: sz });
+        scene.appendChild(star);
+
+        // Cria planeta se dados orbitais estiverem disponíveis
+        if (systemData.pl_orbsmax && systemData.pl_orbper) {
+          const planet = document.createElement('a-sphere');
+          // escala do planeta (raio em Earth radii, pl_rade, adaptado)
+          const pr = systemData.pl_rade ? (systemData.pl_rade * 0.05) : 0.1;
+          planet.setAttribute('radius', pr);
+          planet.setAttribute('color', '#66ccff');
+          // componente orbiter com centro = estrela, radius = semieixo maior em alguma escala, speed = função do período
+          const orbitRadius = systemData.pl_orbsmax * 5;  // escalar para visual
+          const speed = 10 / systemData.pl_orbper;  // arbitrário para efeito visual
+
+          planet.setAttribute('orbiter', {
+            center: star,
+            radius: orbitRadius,
+            speed: speed
+          });
+
+          scene.appendChild(planet);
+        }
+      }
+
+      async function init() {
+        const exos = await fetchExoplanetData();
+        // exos é um array de objetos
+        exos.forEach((sys, idx) => {
+          createStarSystem(sys, idx);
+        });
+      }
+
+      init();
+    </script>
+  </body>
+</html>
